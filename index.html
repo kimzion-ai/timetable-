@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>타임로그 앱</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <!-- PWA Manifest & Meta -->
+    <meta name="theme-color" content="#4f46e5">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="타임로그">
+    <link rel="manifest" href="data:application/manifest+json;charset=utf-8,%7B%22name%22%3A%22%ED%83%80%EC%9E%84%EB%A1%9G%20%EC%95%B5%22%2C%22short_name%22%3A%22%ED%83%80%EC%9E%84%EB%A1%9G%22%2C%22start_url%22%3A%22.%22%2C%22display%22%3A%22standalone%22%2C%22background_color%22%3A%22%23f8fafc%22%2C%22theme_color%22%3A%22%234f46e5%22%2C%22icons%22%3A%5B%7B%22src%22%3A%22https%3A%2F%2Fcdn-icons-png.flaticon.com%2F512%2F2921%2F2921222.png%22%2C%22sizes%22%3A%22512x512%22%2C%22type%22%3A%22image%2Fpng%22%7D%5D%7D">
+</head>
+<body class="bg-slate-50 min-h-screen font-sans text-slate-800 select-none pb-12">
+    <div class="max-w-md mx-auto px-4 py-6">
+        <!-- 앱 상단 헤더 -->
+        <header class="bg-white rounded-3xl shadow-sm border border-slate-100 p-5 mb-5">
+            <div class="flex items-center justify-between mb-3">
+                <div class="flex items-center gap-2.5">
+                    <div class="w-10 h-10 rounded-2xl bg-indigo-50 flex items-center justify-center text-indigo-600 shadow-inner">
+                        <i class="fa-solid fa-clock-rotate-left text-lg"></i>
+                    </div>
+                    <div>
+                        <h1 class="text-lg font-bold text-slate-900 leading-tight">타임로그</h1>
+                        <p class="text-xs text-slate-400">내 하루 시간 기록장</p>
+                    </div>
+                </div>
+                <!-- 설치 버튼 영역 -->
+                <button id="installBtn" class="hidden text-xs bg-indigo-50 text-indigo-600 font-semibold px-3 py-1.5 rounded-xl border border-indigo-100 flex items-center gap-1.5 active:scale-95 transition-transform">
+                    <i class="fa-solid fa-download"></i> 앱 설치
+                </button>
+            </div>
+            
+            <!-- 날짜 선택기 -->
+            <div class="relative">
+                <input type="date" id="selectedDate" class="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-3 text-sm font-semibold text-slate-700 text-center focus:outline-none focus:ring-2 focus:ring-indigo-500 shadow-sm">
+            </div>
+        </header>
+
+        <!-- 시간대 입력/추가 카드 -->
+        <div class="bg-white rounded-3xl shadow-sm border border-slate-100 p-5 mb-5">
+            <div class="flex items-center justify-between mb-3">
+                <span class="text-xs font-bold text-slate-500 tracking-wider uppercase">새 시간대 추가</span>
+                <button onclick="setQuickCurrentTime()" class="text-xs text-indigo-600 font-semibold hover:text-indigo-700 flex items-center gap-1">
+                    <i class="fa-solid fa-bolt text-[10px]"></i> 현재 시간 넣기
+                </button>
+            </div>
+            <div class="flex items-center gap-2 mb-3">
+                <input type="time" id="startTimeInput" class="w-1/2 bg-slate-50 border border-slate-200 rounded-2xl px-3 py-3 text-sm text-center font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                <span class="text-slate-300 font-bold">~</span>
+                <input type="time" id="endTimeInput" class="w-1/2 bg-slate-50 border border-slate-200 rounded-2xl px-3 py-3 text-sm text-center font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500">
+            </div>
+            <button onclick="addTimeSlot()" class="w-full bg-indigo-600 hover:bg-indigo-700 active:scale-[0.98] text-white font-semibold py-3 rounded-2xl text-sm transition-all shadow-md shadow-indigo-100 flex items-center justify-center gap-2">
+                <i class="fa-solid fa-plus"></i> 시간 기록 추가하기
+            </button>
+        </div>
+
+        <!-- 타임라인 리스트 -->
+        <div class="space-y-3" id="timeSlotContainer">
+            <!-- 동적 삽입 -->
+        </div>
+
+        <!-- 하단 관리 메뉴 -->
+        <div class="mt-8 flex items-center justify-between px-2">
+            <button onclick="resetLogs()" class="text-xs text-slate-400 hover:text-red-500 font-medium transition-colors flex items-center gap-1">
+                <i class="fa-solid fa-trash-can"></i> 전체 비우기
+            </button>
+            <div class="text-[11px] text-slate-400 font-medium">
+                <i class="fa-solid fa-shield-halved text-emerald-500 mr-1"></i> 데이터 자동 안전 보관
+            </div>
+        </div>
+    </div>
+
+    <!-- 토스트 알림 컴포넌트 -->
+    <div id="toast" class="fixed bottom-6 left-1/2 -translate-x-1/2 bg-slate-900/90 backdrop-blur-md text-white px-5 py-3 rounded-2xl shadow-xl transform translate-y-24 opacity-0 transition-all duration-300 z-50 flex items-center gap-2.5 text-xs font-medium">
+        <i class="fa-solid fa-circle-check text-emerald-400 text-sm"></i>
+        <span id="toastMessage">저장되었습니다.</span>
+    </div>
+
+    <script>
+        let timeSlots = [];
+        let deferredPrompt = null;
+
+        // PWA 설치 프롬프트 가로채기
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            deferredPrompt = e;
+            const installBtn = document.getElementById('installBtn');
+            installBtn.classList.remove('hidden');
+            installBtn.onclick = () => {
+                deferredPrompt.prompt();
+                deferredPrompt.userChoice.then((choiceResult) => {
+                    if (choiceResult.outcome === 'accepted') {
+                        installBtn.classList.add('hidden');
+                    }
+                    deferredPrompt = null;
+                });
+            };
+        });
+
+        // 오늘 날짜 기본 세팅
+        const dateInput = document.getElementById('selectedDate');
+        const today = new Date().toISOString().split('T')[0];
+        dateInput.value = today;
+
+        dateInput.addEventListener('change', loadSlots);
+
+        function showToast(message) {
+            const toast = document.getElementById('toast');
+            document.getElementById('toastMessage').innerText = message;
+            toast.classList.remove('translate-y-24', 'opacity-0');
+            setTimeout(() => {
+                toast.classList.add('translate-y-24', 'opacity-0');
+            }, 2000);
+        }
+
+        function saveSlots() {
+            const currentDate = dateInput.value;
+            const dataToSave = timeSlots.map(slot => ({
+                ...slot,
+                content: document.getElementById(`content-${slot.id}`)?.value || slot.content
+            }));
+            localStorage.setItem(`app_timelog_${currentDate}`, JSON.stringify(dataToSave));
+        }
+
+        function loadSlots() {
+            const currentDate = dateInput.value;
+            const savedData = localStorage.getItem(`app_timelog_${currentDate}`);
+            if (savedData) {
+                try {
+                    timeSlots = JSON.parse(savedData);
+                } catch (e) {
+                    timeSlots = [];
+                }
+            } else {
+                // 첫 진입시 예시 데이터 제공
+                timeSlots = [
+                    { id: 1, start: "08:00", end: "09:00", content: "기상 및 아침 준비" },
+                    { id: 2, start: "09:00", end: "12:00", content: "오전 집중 업무 처리" }
+                ];
+            }
+            renderSlots();
+        }
+
+        function renderSlots() {
+            const container = document.getElementById('timeSlotContainer');
+            container.innerHTML = '';
+
+            // 시간 순서대로 정렬
+            timeSlots.sort((a, b) => a.start.localeCompare(b.start));
+
+            if (timeSlots.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center py-12 bg-white rounded-3xl border border-slate-100 shadow-sm">
+                        <div class="w-12 h-12 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-3 text-slate-300">
+                            <i class="fa-regular fa-folder-open text-lg"></i>
+                        </div>
+                        <p class="text-slate-400 text-xs">작성된 시간 기록이 없습니다.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            timeSlots.forEach(slot => {
+                const card = document.createElement('div');
+                card.className = "bg-white rounded-3xl shadow-sm border border-slate-100 p-4 flex flex-col gap-2.5 transition-all hover:border-slate-200";
+                
+                card.innerHTML = `
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center gap-2 bg-indigo-50/50 px-3 py-1.5 rounded-xl border border-indigo-50">
+                            <i class="fa-regular fa-clock text-indigo-500 text-xs"></i>
+                            <span class="text-xs font-bold text-indigo-900">${slot.start} ~ ${slot.end}</span>
+                        </div>
+                        <button onclick="deleteSlot(${slot.id})" class="text-slate-300 hover:text-red-500 p-1 transition-colors text-xs" title="삭제">
+                            <i class="fa-solid fa-trash-can"></i>
+                        </button>
+                    </div>
+                    <div>
+                        <input type="text" id="content-${slot.id}" value="${escapeHtml(slot.content)}" 
+                            placeholder="이 시간에 무엇을 하셨나요? 입력하세요..." 
+                            oninput="autoSave(${slot.id})"
+                            class="w-full bg-slate-50/60 border border-slate-100 rounded-2xl px-4 py-3 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all">
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        function escapeHtml(str) {
+            return (str || '').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+        }
+
+        let saveTimeout;
+        function autoSave(id) {
+            clearTimeout(saveTimeout);
+            saveTimeout = setTimeout(() => {
+                const inputEl = document.getElementById(`content-${id}`);
+                const slot = timeSlots.find(s => s.id === id);
+                if (slot && inputEl) {
+                    slot.content = inputEl.value;
+                    saveSlots();
+                    showToast("자동 저장되었습니다.");
+                }
+            }, 500);
+        }
+
+        function addTimeSlot() {
+            const start = document.getElementById('startTimeInput').value;
+            const end = document.getElementById('endTimeInput').value;
+
+            if (!start || !end) {
+                showToast("시작 시간과 종료 시간을 선택해주세요.");
+                return;
+            }
+
+            const newSlot = {
+                id: Date.now(),
+                start: start,
+                end: end,
+                content: ""
+            };
+
+            timeSlots.push(newSlot);
+            saveSlots();
+            renderSlots();
+            showToast("시간대가 추가되었습니다.");
+
+            document.getElementById('startTimeInput').value = '';
+            document.getElementById('endTimeInput').value = '';
+        }
+
+        function setQuickCurrentTime() {
+            const now = new Date();
+            const hours = String(now.getHours()).padStart(2, '0');
+            const minutes = String(now.getMinutes()).padStart(2, '0');
+            const currentTime = `${hours}:${minutes}`;
+
+            document.getElementById('startTimeInput').value = currentTime;
+            document.getElementById('endTimeInput').value = currentTime;
+        }
+
+        function deleteSlot(id) {
+            timeSlots = timeSlots.filter(s => s.id !== id);
+            saveSlots();
+            renderSlots();
+            showToast("기록이 삭제되었습니다.");
+        }
+
+        function resetLogs() {
+            if (confirm("오늘의 모든 기록을 비우시겠습니까?")) {
+                timeSlots = [];
+                saveSlots();
+                renderSlots();
+                showToast("초기화되었습니다.");
+            }
+        }
+
+        loadSlots();
+    </script>
+</body>
+</html>
+
+
+
